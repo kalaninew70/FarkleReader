@@ -1,6 +1,6 @@
 // Minimal offline cache so the app shell (not the camera/vision features,
 // which always need a live camera) still opens after the first visit.
-const CACHE_NAME = 'farkle-scorer-v1';
+const CACHE_NAME = 'GNew Farkle Scorer V10152026';
 const CORE_ASSETS = [
   './',
   './index.html',
