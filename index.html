@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>Farkle Dice Scorer</title>
+<meta name="description" content="Point your camera at your dice and get an instant Farkle score, tracked separately by dice color." />
+
+<!-- Add to Home Screen support -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#14171f" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Farkle" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" href="icons/icon-192.png" />
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===================== HOME / SCOREBOARD ===================== -->
+  <section id="view-home" class="view">
+    <header class="topbar">
+      <h1>🎲 Farkle Scorer</h1>
+      <button class="icon-btn" id="btn-open-settings" aria-label="Settings">⚙️</button>
+    </header>
+
+    <div id="home-no-game" class="panel hidden">
+      <p class="muted">No game in progress.</p>
+      <button class="btn btn-primary" id="btn-new-game">Start New Game</button>
+    </div>
+
+    <div id="home-game" class="panel hidden">
+      <div id="scoreboard" class="scoreboard"></div>
+
+      <div class="turn-panel">
+        <div class="turn-row">
+          <span>Turn score</span>
+          <strong id="turn-score">0</strong>
+        </div>
+        <div class="turn-row">
+          <span>Dice to roll</span>
+          <strong id="dice-remaining">6</strong>
+        </div>
+        <div id="final-round-banner" class="banner hidden"></div>
+      </div>
+
+      <button class="btn btn-primary btn-large" id="btn-roll">Roll Dice</button>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btn-bank">Bank Score</button>
+        <button class="btn btn-outline" id="btn-farkle">Declare Farkle</button>
+      </div>
+      <button class="btn btn-text" id="btn-end-game">End Game</button>
+    </div>
+
+    <div id="home-game-over" class="panel hidden">
+      <h2 id="winner-text"></h2>
+      <button class="btn btn-primary" id="btn-play-again">Start New Game</button>
+    </div>
+  </section>
+
+  <!-- ===================== NEW GAME SETUP ===================== -->
+  <section id="view-newgame" class="view hidden">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-newgame-back" aria-label="Back">←</button>
+      <h1>New Game</h1>
+      <span class="icon-btn-spacer"></span>
+    </header>
+    <div class="panel">
+      <p class="muted">Pick a color for each player. Each color needs to be calibrated once so the camera can recognize it.</p>
+      <div id="color-picker-list" class="color-picker-list"></div>
+      <button class="btn btn-text" id="btn-manage-colors">+ Manage colors</button>
+    </div>
+    <button class="btn btn-primary btn-large" id="btn-start-game">Start Game</button>
+  </section>
+
+  <!-- ===================== CAPTURE / ROLL ===================== -->
+  <section id="view-capture" class="view hidden">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-capture-close" aria-label="Cancel">✕</button>
+      <h1 id="capture-title">Roll</h1>
+      <span class="icon-btn-spacer"></span>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-camera-btn">📷 Camera</button>
+      <button class="tab-btn" id="tab-manual-btn">✏️ Manual</button>
+    </div>
+
+    <!-- Camera tab: live view -->
+    <div id="camera-live" class="camera-wrap">
+      <video id="video" playsinline autoplay muted></video>
+      <div class="viewfinder"></div>
+      <p id="camera-error" class="banner banner-error hidden"></p>
+      <button class="btn btn-primary btn-large" id="btn-take-photo">Capture</button>
+    </div>
+
+    <!-- Camera tab: review captured frame -->
+    <div id="camera-review" class="camera-wrap hidden">
+      <div class="canvas-wrap">
+        <canvas id="canvas-still"></canvas>
+        <canvas id="canvas-overlay"></canvas>
+      </div>
+      <div id="detected-chips" class="chip-row"></div>
+      <div id="ignored-chips-wrap" class="hidden">
+        <p class="muted small">Not scored (different color):</p>
+        <div id="ignored-chips" class="chip-row"></div>
+      </div>
+      <button class="btn btn-text" id="btn-add-die">+ Add a die I missed</button>
+      <div class="btn-row">
+        <button class="btn btn-outline" id="btn-retake">Retake Photo</button>
+        <button class="btn btn-primary" id="btn-confirm-camera">Confirm &amp; Score</button>
+      </div>
+    </div>
+
+    <!-- Manual tab -->
+    <div id="manual-entry" class="manual-wrap hidden">
+      <p class="muted">Tap each die to set what it rolled.</p>
+      <div id="manual-dice" class="manual-dice"></div>
+      <button class="btn btn-primary btn-large" id="btn-confirm-manual">Confirm &amp; Score</button>
+    </div>
+  </section>
+
+  <!-- ===================== ROLL RESULT ===================== -->
+  <section id="view-result" class="view hidden">
+    <div class="panel result-panel">
+      <h2 id="result-headline">Roll Result</h2>
+      <div id="result-breakdown" class="breakdown"></div>
+      <p id="result-total" class="result-total"></p>
+      <p id="result-note" class="muted"></p>
+      <button class="btn btn-primary btn-large" id="btn-result-continue">Continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== COLOR CALIBRATION ===================== -->
+  <section id="view-calibrate" class="view hidden">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-calibrate-close" aria-label="Cancel">✕</button>
+      <h1 id="calibrate-title">Calibrate</h1>
+      <span class="icon-btn-spacer"></span>
+    </header>
+    <div class="camera-wrap">
+      <video id="video-cal" playsinline autoplay muted></video>
+      <div class="viewfinder viewfinder-small"></div>
+      <p class="muted">Center one of this color's dice in the circle, in the same light you'll play under, then tap Sample.</p>
+      <p id="cal-error" class="banner banner-error hidden"></p>
+      <button class="btn btn-primary btn-large" id="btn-sample-color">Sample</button>
+    </div>
+    <div id="cal-preview" class="panel hidden">
+      <p>Captured color:</p>
+      <div id="cal-swatch" class="swatch-preview"></div>
+      <div class="btn-row">
+        <button class="btn btn-outline" id="btn-cal-retry">Try Again</button>
+        <button class="btn btn-primary" id="btn-cal-save">Save</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <section id="view-settings" class="view hidden">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-settings-back" aria-label="Back">←</button>
+      <h1>Settings</h1>
+      <span class="icon-btn-spacer"></span>
+    </header>
+
+    <div class="panel">
+      <h2>Dice Colors</h2>
+      <div id="settings-colors-list" class="settings-colors-list"></div>
+      <button class="btn btn-outline" id="btn-add-color">+ Add Color</button>
+    </div>
+
+    <div class="panel">
+      <h2>Farkle House Rules</h2>
+      <div id="rules-form" class="rules-form"></div>
+      <button class="btn btn-text" id="btn-reset-rules">Restore Default Rules</button>
+    </div>
+
+    <div class="panel">
+      <h2>Data</h2>
+      <button class="btn btn-outline" id="btn-erase-all">Erase All Data</button>
+    </div>
+  </section>
+
+</div>
+
+<canvas id="canvas-hidden" style="display:none"></canvas>
+
+<!-- OpenCV.js, the official build published by the OpenCV project for browser use -->
+<script src="https://docs.opencv.org/4.x/opencv.js" async onload="window.__cvScriptLoaded && window.__cvScriptLoaded()"></script>
+<script src="farkle-engine.js"></script>
+<script src="dice-vision.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
